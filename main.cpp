@@ -1,15 +1,18 @@
 ﻿#include "orderbook.h"
 #include <iostream>
-
+#include "spsc_queue.h"
+#include <thread>
 
 int main() {
+	spsc_queue<std::shared_ptr<order>> queue;
     order_book ob;
     std::vector<trades> vec;
-
-	// AI GENERATED TEST CASES
+    order_level_info info{ ob.get_l2_snapshot(0) };
+   // AI GENERATED TEST CASES
     // -------- INITIAL GTC ORDERS --------
 
     // BUY side (GTC)
+
     auto o1 = std::make_shared<order>(1, 100, side::buy, 5, order_type::good_till_cancel);
     auto o2 = std::make_shared<order>(2, 101, side::buy, 10, order_type::good_till_cancel);
     auto o3 = std::make_shared<order>(3, 102, side::buy, 15, order_type::good_till_cancel);
@@ -38,66 +41,68 @@ int main() {
     auto o16 = std::make_shared<order>(16, 110, side::buy, 10, order_type::fill_and_kill);
 
     // Edge cases
-    auto o17 = std::make_shared<order>(17, 101, side::buy, 7, order_type::fill_and_kill);
+    auto o17 = std::make_shared<order>(19, 101, side::buy, 7, order_type::fill_and_kill);
     auto o18 = std::make_shared<order>(18, 105, side::buy, 15, order_type::fill_and_kill);
     auto o19 = std::make_shared<order>(19, 99, side::sell, 20, order_type::fill_and_kill);
-    auto o20 = std::make_shared<order>(20, 104, side::buy, 10, order_type::fill_and_kill);
+	auto o20 = std::make_shared<order>(19, 104, side::buy, 10, order_type::fill_and_kill); // these don't throw error because they are not inserted into the book 
 
     // -------- INSERT ALL --------
+    try
+    {
+        vec.emplace_back(ob.add_order(o1));
+        vec.emplace_back(ob.add_order(o2));
+        vec.emplace_back(ob.add_order(o3));
+        vec.emplace_back(ob.add_order(o4));
+        vec.emplace_back(ob.add_order(o5));
 
-    vec.emplace_back(ob.add_order(o1));
-    vec.emplace_back(ob.add_order(o2));
-    vec.emplace_back(ob.add_order(o3));
-    vec.emplace_back(ob.add_order(o4));
-    vec.emplace_back(ob.add_order(o5));
-
-    vec.emplace_back(ob.add_order(o6));
-    vec.emplace_back(ob.add_order(o7));
-    vec.emplace_back(ob.add_order(o8));
-    vec.emplace_back(ob.add_order(o9));
-
-
-    auto info = ob.get_l2_snapshot(10);
-    vec.emplace_back(ob.add_order(o10));
-
-    vec.emplace_back(ob.add_order(o11));
-    vec.emplace_back(ob.add_order(o12));
-    vec.emplace_back(ob.add_order(o13));
-    vec.emplace_back(ob.add_order(o14));
-    vec.emplace_back(ob.add_order(o15));
-
-    vec.emplace_back(ob.add_order(o16));
-    vec.emplace_back(ob.add_order(o17));
-    vec.emplace_back(ob.add_order(o18));
-    vec.emplace_back(ob.add_order(o19));
-    vec.emplace_back(ob.add_order(o20));
+        vec.emplace_back(ob.add_order(o6));
+        vec.emplace_back(ob.add_order(o7));
+        vec.emplace_back(ob.add_order(o8));
+        vec.emplace_back(ob.add_order(o9));
 
 
-     for (auto& tr : vec) {
-         for (auto& t : tr) {
-             std::cout << "Trade: Buyer id " << t.get_bid_trade().orderid_
-                 << " & Seller id " << t.get_ask_info().orderid_
-                 << " Qty = " << t.get_ask_info().quantity_
-                 << " Price = " << t.get_ask_info().price_ << "\n";
-         }
-     }
-     {
-		 std::cout << "Order Book Snapshot:\n";
-		 std::cout << "Asks || Bids\n";
-         for (auto it1 = info.asks_.begin(), it2 = info.bids_.begin();
-             it1 != info.asks_.end() || it2 != info.bids_.end(); ) {
-             if (it1 != info.asks_.end()) {
-                 std::cout << it1->amount_ << " : " << it1->quantity_;
-                 ++it1;
-             }
-             if (it2 != info.bids_.end()) {
-                 std::cout << " || " << it2->amount_ << " : " << it2->quantity_;
-                 ++it2;
-             }
-             std::cout << std::endl;
-         }
-     }
-     
-    return 0;
+        vec.emplace_back(ob.add_order(o10));
+
+        vec.emplace_back(ob.add_order(o11));
+        vec.emplace_back(ob.add_order(o12));
+        vec.emplace_back(ob.add_order(o13));
+        vec.emplace_back(ob.add_order(o14));
+        vec.emplace_back(ob.add_order(o15));
+
+        vec.emplace_back(ob.add_order(o16));
+        vec.emplace_back(ob.add_order(o17));
+        vec.emplace_back(ob.add_order(o18));
+        vec.emplace_back(ob.add_order(o19));
+        vec.emplace_back(ob.add_order(o20));
+    }
+    catch (const std::exception& e) {
+        std::cerr << "Exception: " << e.what() << std::endl;
+    }
+        for (auto& tr : vec) {
+            for (auto& t : tr) {
+                std::cout << "Trade: Buyer id " << t.get_bid_trade().orderid_
+                    << " & Seller id " << t.get_ask_info().orderid_
+                    << " Qty = " << t.get_ask_info().quantity_
+                    << " Price = " << t.get_ask_info().price_ << "\n";
+            }
+        }
+        {
+            std::cout << "Order Book Snapshot:\n";
+            std::cout << "Asks || Bids\n";
+            for (auto it1 = info.asks_.begin(), it2 = info.bids_.begin();
+                it1 != info.asks_.end() || it2 != info.bids_.end(); ) {
+                if (it1 != info.asks_.end()) {
+                    std::cout << it1->amount_ << " : " << it1->quantity_;
+                    ++it1;
+                }
+                if (it2 != info.bids_.end()) {
+                    std::cout << " || " << it2->amount_ << " : " << it2->quantity_;
+                    ++it2;
+                }
+                std::cout << std::endl;
+            }
+        }
+
+        return 0;
 }
 

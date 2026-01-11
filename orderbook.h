@@ -224,22 +224,15 @@ public:
 
 		else if (order->get_order_type() == order_type::fill_and_kill) {
 
-			// Temporarily add to order book for matching
+			// Temporarily add order
 			list_ptr->push_back(order);
 			auto it = std::prev(list_ptr->end());
 			orders_[order->get_order_id()] = { order, it };
-			if (!can_match(s, p)) {
-				// Remove the order if it cannot be matched
-				list_ptr->erase(it);
-				orders_.erase(order->get_order_id());
-				if (list_ptr->empty()) {
-					if (s == side::buy) bids_.erase(p);
-					else asks_.erase(p);
-				}
-				return {};
-			}
+
+			// ALWAYS attempt matching
 			auto trades_result = match_orders();
-			// If not fully filled, remove the order
+
+			// Cancel remainder if any
 			if (!order->is_filled()) {
 				orders_.erase(order->get_order_id());
 				list_ptr->erase(it);
@@ -247,10 +240,11 @@ public:
 					if (s == side::buy) bids_.erase(p);
 					else asks_.erase(p);
 				}
-
-				return trades_result;
 			}
+
+			return trades_result;
 		}
+
 		return {};
 	}
 
